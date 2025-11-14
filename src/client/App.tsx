@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Sidebar from "./sidebar";
-import { Moon, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { Moon, PanelLeftClose, PanelLeftOpen, X, Play } from "lucide-react";
 import { DirectoryItem } from "../server/index.ts";
 import { DraggableItem } from "./draggable.tsx";
 
@@ -45,6 +45,7 @@ function ImageModal({
 	onPrev,
 	hasNext,
 	hasPrev,
+	isSlideshow,
 }: {
 	imageId: string;
 	imageName: string;
@@ -53,7 +54,11 @@ function ImageModal({
 	onPrev: () => void;
 	hasNext: boolean;
 	hasPrev: boolean;
+	isSlideshow: boolean;
 }) {
+	const [showControls, setShowControls] = useState(!isSlideshow);
+	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
 	useEffect(() => {
 		const handleKeyboard = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
@@ -68,20 +73,50 @@ function ImageModal({
 		return () => window.removeEventListener("keydown", handleKeyboard);
 	}, [onClose, onNext, onPrev, hasNext, hasPrev]);
 
+	useEffect(() => {
+		if (isSlideshow) {
+			setShowControls(false);
+
+			const handleMouseMove = () => {
+				setShowControls(true);
+
+				if (timeoutRef.current) {
+					clearTimeout(timeoutRef.current);
+				}
+
+				timeoutRef.current = setTimeout(() => {
+					setShowControls(false);
+				}, 1000);
+			};
+
+			window.addEventListener("mousemove", handleMouseMove);
+
+			return () => {
+				window.removeEventListener("mousemove", handleMouseMove);
+				if (timeoutRef.current) {
+					clearTimeout(timeoutRef.current);
+				}
+			};
+		}
+		setShowControls(true);
+	}, [isSlideshow]);
+
 	return (
 		<div
 			className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
 			onClick={onClose}
 		>
-			<button
-				type="button"
-				onClick={onClose}
-				className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors"
-				title="Close (ESC)"
-			>
-				<X size={32} />
-			</button>
-			{hasPrev && (
+			{showControls && (
+				<button
+					type="button"
+					onClick={onClose}
+					className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors"
+					title="Close (ESC)"
+				>
+					<X size={32} />
+				</button>
+			)}
+			{showControls && hasPrev && (
 				<button
 					type="button"
 					onClick={(e) => {
@@ -102,11 +137,12 @@ function ImageModal({
 						strokeLinecap="round"
 						strokeLinejoin="round"
 					>
+						<title>prev</title>
 						<polyline points="15 18 9 12 15 6" />
 					</svg>
 				</button>
 			)}
-			{hasNext && (
+			{showControls && hasNext && (
 				<button
 					type="button"
 					onClick={(e) => {
@@ -127,6 +163,7 @@ function ImageModal({
 						strokeLinecap="round"
 						strokeLinejoin="round"
 					>
+						<title>next</title>
 						<polyline points="9 18 15 12 9 6" />
 					</svg>
 				</button>
@@ -179,6 +216,7 @@ function App() {
 	const [enlargedImageIndex, setEnlargedImageIndex] = useState<number | null>(
 		null,
 	);
+	const [isSlideshow, setIsSlideshow] = useState(false);
 
 	const toggleSidebar = (): void => {
 		setIsSidebarOpen(!isSidebarOpen);
@@ -202,6 +240,8 @@ function App() {
 			enlargedImageIndex < displayImages.length - 1
 		) {
 			setEnlargedImageIndex(enlargedImageIndex + 1);
+		} else if (isSlideshow && enlargedImageIndex !== null) {
+			setEnlargedImageIndex(0);
 		}
 	};
 
@@ -210,6 +250,29 @@ function App() {
 			setEnlargedImageIndex(enlargedImageIndex - 1);
 		}
 	};
+
+	const toggleSlideshow = () => {
+		if (!isSlideshow) {
+			// Start slideshow
+			if (displayImages.length > 0) {
+				setEnlargedImageIndex(0);
+				setIsSlideshow(true);
+			}
+		} else {
+			// Stop slideshow
+			setIsSlideshow(false);
+		}
+	};
+
+	useEffect(() => {
+		if (isSlideshow && enlargedImageIndex !== null) {
+			const timer = setTimeout(() => {
+				handleNextImage();
+			}, 3000);
+
+			return () => clearTimeout(timer);
+		}
+	}, [isSlideshow, enlargedImageIndex]);
 
 	useEffect(() => {
 		fetch("/api/images")
@@ -255,7 +318,10 @@ function App() {
 						<div>
 							<b>Vit</b>
 						</div>
-						<div className="absolute top-4 right-4">
+						<div className="absolute top-4 right-4 space-x-2">
+							<button type="button" onClick={toggleSlideshow}>
+								<Play />
+							</button>
 							<button type="button">
 								<Moon />
 							</button>
@@ -311,6 +377,7 @@ function App() {
 					onPrev={handlePrevImage}
 					hasNext={enlargedImageIndex < displayImages.length - 1}
 					hasPrev={enlargedImageIndex > 0}
+                    isSlideshow={isSlideshow}
 				/>
 			)}
 		</div>

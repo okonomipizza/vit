@@ -1,8 +1,8 @@
 import React, { JSX, ReactNode, useState } from "react";
 import { DirectoryItem } from "../server/index.ts";
-
 import { FolderOpen, FolderClosed, Dot } from "lucide-react";
 import { DropZone } from "./draggable.tsx";
+import { SIDEBAR_WIDTH, TOPBAR_HEIGHT } from "./constants/layout.ts";
 
 interface SidebarProps {
 	isOpen: boolean;
@@ -97,10 +97,10 @@ export default function Sidebar({
 
 	return (
 		<div
-			className={`fixed left-0 top-12 p-4 h-full bg-gray-300 text-blue-500 overflow-y-auto transition-transform duration-300 ease-in-out ${
+			className={`fixed left-0 p-4 h-full bg-gray-300 text-blue-500 overflow-y-auto transition-transform duration-300 ease-in-out ${
 				isOpen ? "translate-x-0" : "-translate-x-full"
 			}`}
-            style={{width: "298px"}}
+            style={{width: `${SIDEBAR_WIDTH}px`, top: `${TOPBAR_HEIGHT}px`}}
 		>
 			{directory?.children && directory.children.length > 0 ? (
 				<div
